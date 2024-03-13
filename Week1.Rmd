@@ -1,0 +1,168 @@
+---
+title: "R Drill Homework#1"
+author: "HwiJoonJ"
+date: "2024-03-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE) #명령어를 수행한게 같이 출력되도록 설정 True
+```
+
+## Example #1.
+기본연산 및 수학함수를 활용하여 아래를 계산하시오.
+
+(1) $\sqrt5$ 
+```{r, echo=TRUE, eval=TRUE}
+print(sqrt(5))
+```
+(2) $e^5$
+```{r, echo=TRUE, eval=TRUE}
+print(exp(5))
+```
+(3) $log_{10} 20$
+```{r, echo=TRUE, eval=TRUE}
+print(log10(20))
+```
+(4) $ln 20$
+```{r, echo=TRUE, eval=TRUE}
+print(log(20))
+```
+(5) $\Gamma (5)$
+```{r, echo=TRUE, eval=TRUE}
+print(gamma(5))
+```
+(6) $|-4.5|$
+```{r, echo=TRUE, eval=TRUE}
+print(abs(-4.5))
+```
+(7) $\pi~(2째자리까지 반올림)$
+```{r, echo=TRUE, eval=TRUE}
+print(round(pi,2))
+```
+
+## Example #2.
+다음과 같은 분포에 대한 확률밀도함수를 산출하시오.
+
+(1) Normal Distribution: $X=5$, $\mu = 5$, $\sigma = 1$
+```{r, echo=TRUE, eval=TRUE}
+dnorm(x=5, mean=5, sd=1)
+```
+(2) Exponential Distribution: $X=1$, $\lambda=5$
+```{r, echo=TRUE, eval=TRUE}
+dexp(x=1, rate=5)
+```
+(3) Weibull Distribution: $X=50$, $\alpha=80$, $\beta=1.5$
+```{r, echo=TRUE, eval=TRUE}
+dweibull(x=50, shape=80, scale=1.5)
+```
+
+## Example #3. 
+A=5, b=6일 때 변수를 할당하여 다음 식을 계산하시오. 계산이 끝난 후 A와 B 변수를 한번에 지우도록 스크립트를 작성하시오.
+
+(1) $2A+b^2$
+```{r, echo=TRUE, eval=TRUE}
+A=5; b=6;
+No1 = 2*A + b^2
+rm(A, b)
+print(No1)
+```
+(2) $A^5 \times 3^b$
+```{r, echo=TRUE, eval=TRUE}
+A=5; b=6;
+No2 = A^5 + 3^b
+rm(A, b)
+print(No2)
+```
+
+## Example #4.
+다음과 같이 정규분포에 대한 확률밀도함수를 기반으로 입, 출력 함수를 정의하시오.
+
+input variable: $x$, $\mu$, $\sigma$
+
+output variable: $10 \times f(x)$
+
+given function: $f(x)$ =${1}\over{\sigma \sqrt(2\pi)}$ $exp$ $($ ${-(x-\mu)^2}\over{2 \sigma^2}$ $)$
+
+```{r, eval=TRUE, echo=TRUE}
+x=0; mu=0; sigma=1;
+NormFunc = function(x, mu, sigma) {
+  value = 1/(sigma*sqrt(2*pi))*exp(-((x-mu)^2)/(2*sigma^2))
+  return(value)
+}
+NormFunc(x, mu, sigma)
+```
+
+## Example #5.
+합: sum(), 곱: prod() 함수를 사용하여 아래의 연산을 수행하시오.
+
+(1) $1^2 + 2^2 + 3^2 + \dots + 99^2 + 100^2$
+```{r, eval=TRUE, echo=TRUE}
+sum(1:100 * 1:100)
+```
+
+(2) $1 \times 2 \times 3 \times \dots 9 \times 10$
+```{r, eval=TRUE, echo=TRUE}
+prod(1:10)
+```
+
+(3) $$\sum_{i=1}^{20}{ \cos(  \frac{i}{20} \pi)}$$
+```{r, eval=TRUE, echo=TRUE}
+sum(cos(seq(1,20)/20*pi))
+```
+
+## Example #6.
+2의 배수로 구성된 $3\times 3$ 행렬을 생성하고, 행 이름을 알파벳, 열 이름을 한글로 정의하시오. 또한,
+2행 3열에 해당하는 값을 추출하시오.
+
+```{r, eval=TRUE, echo=TRUE}
+m = matrix((1:9)*2, ncol=3, nrow=3)
+dimnames(m)[[1]] = c("A", "B", "C")
+dimnames(m)[[2]] = c("가", "나", "다")
+print(m[2,3])
+```
+
+## Example #7.
+R에서 기본으로 제공되는 iris 데이터에서, 종류(Species)가 ‘virginica’인 데이터만 추출하시오.
+
+```{r, eval=TRUE, echo=TRUE}
+vir = iris[which(iris$Species == 'virginica'),]
+print(vir)
+```
+
+## Example #8.
+iris 데이터의 3번째 열, Species 변수를 각각 벡터로 저장하고, 두 벡터를 원소로 가지는 리스트를 생
+성하시오.
+
+```{r, echo=TRUE, eval=TRUE}
+vec1 = iris[,3]
+vec2 = iris$Species
+L = list(vec1, vec2)
+print(L)
+```
+
+## Example #9. 
+데이터를 입력값으로 받아서 데이터의 각 행마다 아래의 반복문을 수행하는 함수 코드를 작성하시오.
+
+- 모든 행에 대하여 ‘Species’ 변수가 ‘setosa’인 경우 1을 출력, ‘versicolor’인 경우 2를 출력, ‘virginica’인 경우 3을 출력
+
+- 출력은 print() 함수를 사용할 것
+
+- 단순 연산이 아니라 “함수화”가 이루어진 코드만을 정답으로 인정
+
+```{r, echo=TRUE, eval=TRUE}
+Specnum = function(dat) {
+  for(i in c(1:length(dat$Species))) {
+    if(dat$Species[i] == 'setosa') {
+      print(1)
+    }
+    if(dat$Species[i] == 'versicolor') {
+      print(2)
+    }
+    else {
+      print(3)
+    }
+  }
+}
+Specnum(iris)
+```
