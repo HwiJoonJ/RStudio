@@ -1,5 +1,5 @@
 ---
-title: "산업공학특론I 3주차_확률변수와 확률분포"
+title: "산업공학특론I 3주차_확률변수와 확률분포22"
 author: "HwijoonJ (wjdgnlwns20@psm.hanyang.ac.kr)"
 date: "`r format(Sys.Date())`"
 output: html_document
@@ -123,6 +123,7 @@ disc = data.frame(rbind(summary(sdat[[1]]), summary(sdat[[2]])))
 rownames(disc) = c('Censored', 'Failed')
 print(disc)
 ```
+
 
 <br>
 <br>
