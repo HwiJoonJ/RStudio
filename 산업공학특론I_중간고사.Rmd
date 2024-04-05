@@ -1,0 +1,465 @@
+---
+title: "산업공학특론I_중간고사"
+author: "정 휘준 (2023141277)"
+date: "4/10/2024"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.width=12, fig.height=12)
+```
+
+<br>
+<br>
+<br>
+
+### [중간고사 개요]
+
+<br>
+
+#### 1. 중간고사 답안 작성 및 제출 요령
+
+* 모든 답안 도출 과정은 R 코드로 작성되어야 하며, 코드에는 분석 과정을 식별할 수 있도록 주석(#)으로 설명이 작성되어야 한다. (R 코드 없이 답만 적는 경우 오답 처리)
+
+* 수강생 간 코드를 공유하거나 동일하게 작성하는 행위를 금지한다. (적발 시 진실의 방 소환 및 모두 0점으로 성적 반영)
+
+* 특정한 문제에 대한 답안은 해당 문항에 대한 코드에 작성되어야 한다. (1번 문항에 대한 답을 2번 문항에 적는 경우 오답 처리)
+
+* 답안은 Rmd 확장자로 보고서 제작이 가능하도록 제출하는 것을 원칙으로 하나, Markdown 실행이 어려운 경우 R 스크립트로 작성하되 채점이 가능하도록 문항 별로 스크립트를 작성하여야 한다. 
+
+* 중간고사 답안은 4월 10일 23시 59분까지 온라인 강의실 내 과제 및 평가 - 중간고사 탭에 제출하여야 하며, 4월 11일 자정 이후에는 제출이 불가하다. (이후 다른 경로를 통하여 제출 시 총점의 50%로 성적 반영)
+
+<br>
+<br>
+
+#### 2. 데이터 설명
+
+어느 의류 생산 공정에서는 재봉 (sewing), 마감 (finishing)으로 부서를 구성하여 공정을 운영하고 있으며,
+공정의 생산성을 개선하기 위해 일별 공정 작업 관련 데이터를 수집하여 생산성에 영향을 미치는 요인을 분석하고자 한다.
+데이터 분석에 활용하는 변수의 정보는 다음과 같다.
+
+* date: 집계 날짜
+* quarter: 한 달을 나눈 분기 (주)
+* department: 부서
+* day: 요일
+* team: 부서별 투입 인원 수
+* targeted_productivity: 당초에 목표한 생산성 점수
+* over_time: 초과근무 (분)
+* incentive: 성과급
+* actual_productivity: 실제 생산성 점수
+
+<br>
+
+상기에 기술된 작성요령과 데이터를 기반으로 주어진 문제에 대한 분석 과정과 그에 따른 답안을 기술하시오.
+
+
+<br>
+<br>
+<br>
+
+
+### [중간고사 문항]
+
+<br>
+
+#### 1. 주어진 데이터에서 데이터 탐색 (EDA) 및 전처리를 수행하고, 결과를 시각화하시오. (10점)
+
+* 활용하지 않는 변수 (date, smv, wip, idle_time, idle_men, no_of_style_change, no_of_workers)는 삭제할 것
+* 시각화 시 범주형 변수는 막대그래프로, 연속형 변수는 히스토그램으로 표현할 것
+
+```{r no_1}
+#Ignore Warning Message
+options(warn = -1)
+
+#Loading Data
+library(dplyr, verbose = F, warn.conflicts = F)  #For drop or select columns
+dat <- read.csv("산업공학특론I_중간고사 데이터.csv")
+
+#Select columns
+df <- dplyr::select(dat, - c("date", "smv", "wip", "idle_time", "idle_men", "no_of_style_change", "no_of_workers"))
+
+#Department has to be owned (finishing or sewing) but there is one more "finishing ". must to change "finishing " into "finishing".
+#Department has to be owned "sewing" but there is "sweing". it must to be changed into "sewing".
+df$department <- gsub("\\s+", "", df$department)
+df$department <- gsub("sweing", "sewing", df$department)
+
+#Actual productivity is probability value so, it cannot over 1.0. it changes into Mean.
+df$actual_productivity <- replace(df$actual_productivity, which(df$actual_productivity>1.0), mean(df$actual_productivity))
+
+#There is abnormal value in the incentive. This indices value is switch with "over_time" columns
+indices <- which(df$incentive > 200)
+temp <- as.integer(df$over_time[indices])
+df$over_time[indices] <- df$incentive[indices]
+df$incentive[indices] <- temp
+
+#Column Factorization
+df$quarter <- as.factor(df$quarter)
+df$department <- as.factor(df$department)
+df$day <- as.factor(df$day)
+df$team <- as.factor(df$team)
+
+#Change column names
+new_column_names <- gsub("_", "", colnames(df)) # 밑줄(_) 삭제
+new_column_names <- sapply(new_column_names, function(name) {
+  # 맨 앞 글자를 대문자로 전환
+  paste(toupper(substr(name, 1, 1)), substr(name, 2, nchar(name)), sep="")
+})
+colnames(df) <- new_column_names
+
+#Summarize
+summary(df)
+
+#Plotting Data
+visualize = function(x, title) {
+  if(is.factor(x)) {
+    freqs <- table(x)
+    Bar <- barplot(freqs, col='navy', main=paste("Barplot of ", "'",title,"'"))
+    text(x = Bar, y = freqs + max(freqs) * 0.01, labels = freqs, pos = 1, cex = 1, col='hotpink')
+  }
+  else {
+    H <- hist(x, breaks=12, plot = FALSE)
+    plot(H, col='navy', main=paste("Histogram of ", "'", title, "'"))
+    mids <- H$mids
+    counts <- H$counts
+    text(x = mids, y = counts + max(counts) * 0.05, labels = counts, pos = 1, cex = 1, col='hotpink')
+  }
+}
+
+par(mfrow=c(4,2), mar=c(4, 4, 2, 1), oma=c(1, 1, 1, 1))
+for(i in 1:ncol(df)){
+  visualize(x=df[,i], title=colnames(df)[i])
+}
+
+```
+
+<br>
+<br>
+
+#### 2. 실제 생산성 점수 (actual_productivity)가 어떠한 분포를 따르는지 규명하기 위하여 여러 분포에 대한 MLE를 추정 및 비교하고, 최적 분포를 도출하시오. (15점)
+
+* 여러 분포 (최소 2개 이상)에 대하여 MLE를 통하여 모수를 추정할 것
+* 분포별 추정 결과 비교 시 적합도 평가 지표를 활용할 것
+* 추정 결과에 따른 최적 분포를 도출하고, 그 근거를 제시할 것
+
+```{r no_2}
+#Data
+x <- df$Actualproductivity
+
+#Distribution Negative Log-likelihood function
+gamma_loglikelihood <- function(par, x){
+  -sum(dgamma(x, shape=par[1], rate=par[2], log=T))
+}
+
+norm_loglikelihood <- function(par, x) {
+  -sum(dnorm(x, mean=par[1], sd=par[2], log=T))
+}
+
+weib_loglikelihood <- function(par, x){
+  -sum(dweibull(x, shape=par[1], scale=par[2], log=T))
+}
+
+exp_loglikelihood <- function(par, x){
+  -sum(dexp(x, rate=par, log=T))
+}
+
+#Optimization MLE function each distribution
+res_gamma <- optim(par = c(3, 6), fn = gamma_loglikelihood, x = x, control = list(type = 2))
+res_norm <- optim(par = c(mean(x), var(x)), fn = norm_loglikelihood, x = x, control = list(type = 2))
+res_weib <- optim(par = c(5, 1), fn = weib_loglikelihood, x = x, control = list(type = 2))
+res_exp <- optim(par = 1, fn = exp_loglikelihood, x = x, method="L-BFGS-B", control = list(type = 1))
+
+#Print distribution MLE value and parameters
+cat("--------------------------Gamma-------------------------------", "\n", "Maximum Likelihood Estimate of parameter:", res_gamma$par, "\n", "Maximum Log Likelihood Value:", -res_gamma$value, "\n")
+cat("--------------------------Normal------------------------------", "\n", "Maximum Likelihood Estimate of parameter:", res_norm$par, "\n", "Maximum Log Likelihood Value:", -res_norm$value, "\n")
+cat("-------------------------Weibull------------------------------", "\n", "Maximum Likelihood Estimate of parameter:", res_weib$par, "\n", "Maximum Log Likelihood Value:", -res_weib$value, "\n")
+cat("----------------------Exponential-----------------------------", "\n", "Maximum Likelihood Estimate of parameter:", res_exp$par, "\n", "Maximum Log Likelihood Value:", -res_exp$value, "\n")
+cat("----------------------Best Model------------------------------", "\n", "Best Model: Weibull Distribution", "\n","Maximum Log Likelihood Value:", max(-res_exp$value, -res_gamma$value, -res_norm$value, -res_weib$value), "\n") #Best Model = Weibull Distribution, the largest Maximum Log-likelihood estimation
+
+#Visualization Rationale
+hist(x, breaks=20, prob=T, main='Actual Productivity Data Histogram')
+curve(dgamma(x, shape=res_gamma$par[1] ,rate=res_gamma$par[2]), col='blue', add=T)
+curve(dnorm(x, mean=res_norm$par[1], sd=res_norm$par[2]), col='green', add=T)
+curve(dweibull(x, shape=res_weib$par[1], scale=res_weib$par[2]), col='red', add=T, lwd=3)
+curve(dexp(x, rate=res_exp$par), col='black', add=T)
+legend('topright', legend = c('Gamma', 'Normal', 'Weibull', 'Exponential'), col=c('blue', 'green', 'red', 'black'), lty=1)
+```
+
+<br>
+<br>
+
+#### 3. 2. 에서 도출된 최적 분포를 기준으로 MLE 추정 결과를 시각화하고 이를 해석하시오. (10점)
+
+* 시각화의 경우 실제 데이터의 분포와 MLE를 모수로 가지는 분포의 비교가 가능하도록 도시할 것
+* 단순 도시가 아닌 도시 결과에 대한 해석 결과를 설명하고, 결론을 도출할 것
+
+```{r no_3}
+#Load library
+library(MASS, verbose = F, warn.conflicts = F)
+library(fitdistrplus, verbose = F, warn.conflicts = F)
+
+#Plot best distribution: Weibull
+Real_dist <- fitdistr(x, "weibull")
+hist(x, breaks=20, prob=T, main='Real Distribution and Estimated Distribution')
+curve(dweibull(x, shape=res_weib$par[1], scale=res_weib$par[2]), col='red', lty="dashed",add=T, lwd=3)
+curve(dweibull(x, shape=Real_dist$estimate[1], scale=Real_dist$estimate[2]), col='darkgreen', add=T, lty="dotdash", lwd=3)
+
+#Print the parameter and value
+cat("------------------------Estimation----------------------------", "\n", "Maximum Likelihood Estimate of parameter:", res_weib$par, "\n", "Maximum Log Likelihood Value:", -res_weib$value, "\n")
+cat("---------------------------Real-------------------------------", "\n", "Maximum Likelihood Estimate of parameter:", Real_dist$estimate, "\n", "Maximum Log Likelihood Value:", Real_dist$loglik, "\n")
+```
+##### As shown in figures below and above, there is almost no difference between the parameter estimates and the actual parameter values.
+| * | Shape | Scale | Log-Likelihood |
+|:--------- |:--------- | :--------------------- |:--------------------- |
+| Estimation Model | 5.219493 | 0.8000027 | 437.8622 |
+| Real | 5.219369 | 0.8000033 | 437.8622 |
+| Difference | 0.000124538  | 6.081956e-07 | 0.0 |
+
+```{r no_3-1}
+#Visualize the parameter difference
+X_ <- c("Model Shape", "Real Shape", "Model Scale", "Real Scale")
+Y_ <- c(res_weib$par[1], Real_dist$estimate[1], res_weib$par[2], Real_dist$estimate[2])
+
+Bar <- barplot(Y_, names.arg=X_, col=c("lightpink", "skyblue", "lightpink", "skyblue"), main=paste("Estimation Param vs Real Param"), density=60)
+text(x = Bar, y = Y_ - max(Y_) * 0.01, labels = round(Y_,6), pos = 1, cex = 1, col='black')
+legend('topright', legend = c('Estimation', 'Real'), col=c("lightpink", "skyblue"), lty=1, lwd=10)
+```
+
+<br>
+<br>
+
+#### 4. 주차 (quarter), 부서 (department), 요일 (day) 별로 목표하는 점수 (targeted_productivity), 실제 생산성 점수 (actual_productivity)에 차이가 없는지 그룹화를 수행하고 각 점수에 대해 기술통계량을 검토하시오. (10점)
+
+* 기술통계량은 목표 점수, 실제 점수 모두 검토할 것
+* 기술통계량 검토 결과를 해석하여 본인의 생각과 결론을 글로 작성할 것
+
+```{r no_4}
+actual_group_summary <- function(column) {
+  dat_split <- split(df$Actualproductivity, column)
+  print(lapply(dat_split, summary))
+}
+
+targeted_group_summary <- function(column) {
+  dat_split <- split(df$Targetedproductivity, column)
+  print(lapply(dat_split, summary))
+}
+
+for(i in 1:3) {
+  print("-------------------------------------------------------")
+  print(colnames(df)[i])
+  print("-------------------------------------------------------")
+  print("----------------Actual Productivity--------------------")
+  actual_group_summary(df[,i])
+  print("----------------Targetted Productivity-----------------")
+  targeted_group_summary(df[,i])
+}
+```
+
+
+
+```{r Table, echo=F}
+library(knitr, verbose = F, warn.conflicts = F)
+library(kableExtra, verbose = F, warn.conflicts = F)
+
+tab <- data.frame(
+  "Columns" = c("Quarter", "Department", "Day"),
+  "Description" = c("Significant differences between actual productivity and target productivity occur from the 3rd quarter. 3rd quarter and 4th quarter actual productivity records lower productivity than target productivity. As a result, in the 5th quarter, actual productivity, which is much higher than target productivity, is recorded due to an increase in supply to meet demand. This is because the target production plan to meet the supply volume is not met in the 3rd and 4th quarters, and the actual productivity that exceeds the target productivity is shown in the 5th quarter.", "Significant mean differences between departments are not easy to determine. Although it is difficult to judge from the given average and quanatile values alone, the difference between target productivity and actual productivity is larger in the sewing department than in the finishing department. This can be thought to be due to the fact that the sewing department's process difficulty is higher than that of the finishing department, which increases the reprocessing rate due to the defect rate.", "The target productivity and actual productivity of each day of the week show the greatest difference on weekends. Friday is designated as a company holiday, and as a result, Saturday after the holiday records actual productivity that exceeds target productivity. This indicates that process efficiency increases significantly after the holidays. Conversely, on Sundays, actual productivity is recorded below target productivity because employees go to work on a day when others do not go to work. Among weekdays, Wednesday shows the biggest difference. It can be thought that this is the result of the aftereffects of working four days in a row on Saturday, Sunday, Monday, and Tuesday.")
+)
+#Quarter : Actual Productivity와 Target Productivity의 유의미한 차이는 3rd Quarter에서부터 발생한다. 3rd Quarter와 4th Quarter Actual Productivity은 Target Productivity보다 낮은 Productivity을 기록한다. 이로 인하여 5th Quarter에서는 수요 충족을 위한 공급량 증대로 인하여 Target Productivity보다 훨씬 높은 Actual Productivity가 기록된다. 이는 공급량 충족을 위한 목표 생산 계획이 3rd Quarter와 4th Quarter에서 충족되지 않음으로 인하여 5th Quarter에 Target Productivity를 상위하는 Actual Productivity를 보이게 된다.
+
+#Department : department 간의 유의미한 평균 차이는 확인하기가 쉽지 않다. 주어진 평균과 qunatile값만으로는 판단하기는 어렵지만, sewing department가 finishing department보다는 target productivity와 actual productivity간의 차이가 크다. 이는 sewing department의 공정 난이도가 finishing department보다 높아 불량률에 따른 재공정률이 증가함으로 인한 것이라고 생각해볼 수 있다.
+
+#Day : 요일간의 target productivity와 actual productivity는 주말에 가장 큰 차이를 보인다. 금요일은 회사의 휴일로 정해져있으며 이로 인해 휴일 이후인 토요일은 target productivity를 상위하는 actual productivity를 기록한다. 이는 휴일 이후의 공정 효율이 크게 증대한다는 것을 나타낸다. 반대로 일요일에는 남들이 다들 출근하지 않는 요일에 출근하므로 인하여 target productivity를 하위하는 actual productivity를 기록한다. 주중 중에는 수요일이 가장 큰 차이를 보인다. 이는 토요일 일요일 월요일 화요일 4일간 연달아 근무한 후유증으로 인한 결과가 아닌가 생각해볼 수 있다.
+```
+
+
+<h3> Description about Actual Productivity Difference of Each Columns </h3>
+
+
+```{r table_2, echo=F}
+kable(tab, "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = F)
+```
+
+<br>
+<br>
+
+#### 5. 부서 (department) 별로 실제 생산성 점수 (actual_productivity)의 분포에 차이가 있다고 볼 수 있는지 검정하고자 한다. 신뢰수준 99% 하에서 모평균, 모분산 가설검정을 수행하시오. (10점)
+
+* 가설검정을 수행할 때에는 5단계의 절차를 준용하여 코드 및 설명을 작성할 것
+* 모평균 검정 시 모분산은 알려지지 않았으며, 부서별 생산성 점수의 모분산은 다르다고 가정
+
+```{r no_5}
+#Population Mean Hypothesis Test
+#First-step : Set H0 and H1
+cat("H0: Each department's actual productivity distribution of Mean is same.", "\n")
+cat("H1: Each department's actual productivity distribution of Mean is significantly different.", "\n")
+
+#Second-step : set Alpha value
+alpha <- 0.01
+
+#Actual Productivity Data Split as Department
+df_dep <- split(df$Actualproductivity, df$Department)
+Sew <- df_dep$sewing
+Fin <- df_dep$finishing
+
+#Third step : H0 and H1 is Same / not-same -> Two-Tailed Test
+M_res <- t.test(Sew, Fin, var.equal=FALSE, conf.level = 1-alpha) #Diff Variance
+
+#Fourth step : Statistic value
+cat("Different variance T-test t value : ", M_res$statistic, "\n")
+cat("Different variance estimated mean value : ", M_res$estimate, "\n")
+
+#Fifth step : Test result
+cat("Different variance T-test's p-value is larger than alpha(=0.01)?", M_res$p.value > alpha/2, "\n")
+if(M_res$p.value >= alpha/2) {
+  print("Choose H0: Each department's actual productivity distribution of Mean is same.")
+}
+if(M_res$p.value < alpha/2) {
+  print("Choose H1: Each department's actual productivity distribution of Mean is significantly different.")
+}
+
+#Population Variance Hypothesis Test
+#First step : Set H0 and H1
+cat("H0: Each department's actual productivity distribution of Mean is same.", "\n")
+cat("H1: Each department's actual productivity distribution of Mean is significantly different.", "\n")
+
+#Second step : set alpha (above this code)
+
+#Third step : H0 and H1 is Same / not-same -> Variance Two-Tailed Test
+V_res <- var.test(Sew, Fin, conf.level = 1-alpha)
+
+#Fourth step : Statistic value
+cat("Variance-test value : ", V_res$statistic, "\n")
+cat("Variance-test estimated value : ", V_res$estimate, "\n")
+
+#Fifth step : Test result
+cat("Variance-test's p-value is larger than alpha(=0.01)?",V_res$p.value > alpha/2, "\n")
+if(V_res$p.value >= alpha/2) {
+  print("Choose H0: Each department's actual productivity distribution of Variance is same. \n")
+}
+if(V_res$p.value < alpha/2) {
+  print("Choose H1: Each department's actual productivity distribution of Variance is significantly different. \n")
+}
+
+```
+
+<br>
+<br>
+
+#### 6. 부서에 따라 목표 생산성 점수 (targeted_productivity) 대비 실제로 달성한 생산성 점수 (actual_productivity)를 초과하는 비율에 차이가 있는지 살펴보고자 한다. 부서 (department) 별로 목표량을 초과하여 생산이 이루어진 비율에 차이가 있는지 95% 신뢰수준 하에서 검정을 수행하고, 달성 비율 차이에 대한 신뢰구간을 산출하시오. (15점)
+
+* 부서별 전체 데이터 중 목표 생산성 점수가 실제 생산성 점수를 초과하는 비율이 같은지 비교할 것
+
+```{r no_6}
+#Population Proposition Hypothesis Test
+#First-step : Set H0 and H1
+cat("H0 : Sewing and Finishing Department's Productivity Achievement rate is same.\n")
+cat("H1 : Sewing and Finishing Department's Productivity Achievement rate is different.\n")
+
+#Second-step : set Alpha 
+alpha <- 0.05
+
+#Split data as Department with Target P / Actual P
+df_dpt <- split(df$Targetedproductivity/df$Actualproductivity, df$Department)
+Sew_dpt <- df_dpt$sewing
+Fin_dpt <- df_dpt$finishing
+
+# Target productivity is greater than Actual productivity probability : Productivity Achievement rate
+sew_ndat <- length(Sew_dpt)
+sew_more_work <- sum(Sew_dpt > 1)
+sew_p <- sew_more_work/sew_ndat
+
+fin_ndat <- length(Fin_dpt)
+fin_more_work <- sum(Fin_dpt > 1)
+fin_p <- fin_more_work/fin_ndat
+
+#Third step : Hypothesis Test (Two-Tailed)
+P_res <- prop.test(sew_p, fin_p, conf.level=1-alpha)
+
+#Fourth step : Statistic value
+cat("Proposition-test value : ", P_res$statistic, "\n")
+cat("Proposition-test estimated value : ", P_res$estimate, "\n")
+
+#Fifth step : Result
+cat("Proposition-test's p-value is larger than alpha(=0.01)?",V_res$p.value > alpha/2, "\n")
+if(V_res$p.value >= alpha/2) {
+  print("Choose H0: Each department's productivity acheivement rate is same.\n")
+}
+if(V_res$p.value < alpha/2) {
+  print("Choose H1: Each department's productivity acheivement rate is different.\n")
+}
+```
+
+<br>
+<br>
+
+#### 7. 생산 공정에 투입되는 인원 (team)이 요일 (day)에 관계없이 동일한지 검정하고자 한다. 신뢰수준 95%에서 가설검정을 수행하시오. (15점)
+
+* 요일별로 평균적인 투입 인원을 산출할 것
+* 실제 투입 인원이 요일에 관계없이 동일한 경우와 비교하여 가설검정을 수행할 것
+
+
+```{r no_7}
+#First ordered contingency table hypothesis test
+#First-step : Set H0 and H1
+cat("H0: Regardless Day of Average Team is same.\n")
+cat("H1: Regardless Day of Average Team is different.\n")
+
+#Second step : Set alpha
+alpha <- 0.05
+
+#Data
+DayTeam <- table(df$Day, df$Team)
+
+#Third step : Chi-squared Hypothesis Test
+chi_res <- chisq.test(DayTeam)
+
+#Fourth step : Statistic value
+cat("Chi-squared-test value : ", chi_res$statistic, "\n")
+cat("Chi-squared-test parameter value : ", chi_res$parameter,"\n")
+
+#Fifth step : Result
+if(chi_res$p.value < alpha) {
+  cat("Choose H1: Regardless Day of Average Team is different.","\n")
+} else {
+  cat("Choose H0: Regardless Day of Average Team is same.","\n")
+}
+```
+
+
+<br>
+<br>
+
+#### 8. 초과근무 시간 (over_time)과 성과급 (incentive)이 연관성이 있는지 가설검정을 통하여 확인하고자 한다. 신뢰수준 90%에서 가설검정을 수행하고, 이에 대한 결론을 도출하시오. (15점)
+
+* 이상치를 배제하기 위하여 인센티브는 80, 초과근무는 8000 미만인 대상만 고려할 것
+* 연속형 변수의 경우, 이산화를 진행하여 변수를 처리해주어야 함
+* 검정을 위한 테이블은 5행 5열로 구성할 것
+
+```{r no_8}
+#Second ordered contingency table hypothesis test
+#First-step : Set H0 and H1
+cat("H0: There is no correlation with overtime and incentive. \n")
+cat("H1: There is correlation with overtime and incentive. \n")
+
+#Second step : Set alpha
+alpha <- 0.1
+
+#Third step : Chi-squared Hypothesis Test
+df_SOC <- subset(df, Overtime < 8000 & Incentive < 80)
+SOC <- chisq.test(df_SOC$Incentive, df_SOC$Overtime)
+
+#Fourth step : Statistic value
+cat("Chi-squared-test value : ", SOC$statistic, "\n")
+cat("Chi-squared-test parameter value : ", SOC$parameter,"\n")
+
+#Fifth step : Result
+if(SOC$p.value < alpha) {
+  cat("Choose H1: There is correlation with overtime and incentive. \n")
+} else {
+  cat("Choose H0: There is no correlation with overtime and incentive. \n")
+}
+
+```
+
