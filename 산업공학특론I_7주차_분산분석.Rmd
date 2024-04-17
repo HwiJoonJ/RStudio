@@ -1,6 +1,6 @@
 ---
 title: "산업공학특론I_7주차_분산분석_실습"
-author: "Munwon Lim"
+author: "Hwijun Jung"
 date: "4/17/2024"
 output: html_document
 ---
@@ -41,16 +41,67 @@ knitr::opts_chunk$set(fig.width=9, fig.height=12)
 
 ### 1. 데이터 탐색 (EDA) 및 전처리
 ```{r eda}
+filename <- list.files(pattern='B[0-9]') #B+숫자 형태를 가진 파일명 검색
+dat <- list()
+for(i in 1:length(filename)) {
+  dat[[i]] <- read.csv(filename[i])
+}
+lapply(dat, head)
 
+names(dat) <- gsub('.csv', '', filename)
+names(dat)
 
+lapply(dat, summary)
+
+par(mfrow=c(4,2))
+for(i in c(2,4:9)) {
+  plot(dat[[1]][,i])
+}
+
+temp <- merge(dat[[1]], dat[[2]], by=c('cycle', 'time'))
+head(temp)
+
+#Merge capacity data with cycle/time
+dat_merge <- Reduce(function(x, y){merge(x, y, by=c('cycle', 'time'))}, dat)
+head(dat_merge)
+
+dat_merge <- dat_merge[,c(1,2,grep('capacity', colnames(dat_merge)))] #찾고자하는 문자열의 인덱스 반환
+colnames(dat_merge)[3:5] <- names(dat)
+head(dat_merge)
+
+#Cycle 단위로 계측치 축소
+#종속변수~독립변수
+#계측치~기준치
+dat_merge <- aggregate(. ~ cycle, data=dat_merge[,-2], FUN = mean)
+head(dat_merge)
+
+#Visualization
+par(mfrow=c(1,1))
+plot(NULL, xlim=c(range(dat_merge$cycle)), ylim=c(range(dat_merge[,2:4])), xlab='cycle', ylab='capacity')
+for(i in 2:length(dat_merge)) {
+  points(dat_merge$cycle, dat_merge[,i], col=i, pch=19)
+}
+legend('topright', legend=names(dat), col=2:4, pch=16)
+
+#Reshape data available ANOVA
+library(reshape)
+dat_merge <- melt(data=dat_merge, id.vars='cycle')
+head(dat_merge)
 ```
 
 <br>
 
 ### 2. 분산분석
 ```{r anova}
+#H0: 3 배터리 용량의 평균은 같다
+#H1: 3 배터리 용량의 평균은 다르다
+fit <- aov(value~variable, data=dat_merge)
+summary(fit)
 
+unique(predict(fit, dat_merge, interval='confidence'))
 
+par(mfrow=c(2,2))
+plot(fit)
 ```
 
 <br>
@@ -60,6 +111,12 @@ knitr::opts_chunk$set(fig.width=9, fig.height=12)
 (Reference: <a href="https://d1wqtxts1xzle7.cloudfront.net/71815004/abdi-HSD2010-pretty-libre.pdf?1633663014=&response-content-disposition=inline%3B+filename%3DTukeys_Honestly_Signiflcant_Difierence_H.pdf&Expires=1712988568&Signature=Nyf6xCVSgBknn2yDmEqL7XTvlu~jYNlMYpcO6c51wwhrD9iQeL6oeoxwbu-LTA~Fa90eMv8mIaE~yX7Mq2aSUOs7Rw83RP2TuXy12E0kcl8bKkQIphIOiy5BIA85N8a~NviRgroK~aDxFxV18BxIlNEJ1ip6Ptm-F9JMFJIgYlwL-sWO6Cq-ARaz2vmO2Og66H4XvaFbUe3sYGW~E7Cudt5SKsXcZV0hZPCaxDWI65Kb-zlc9ZV6YZ0zSss0lc-T--CveIq80HY1NtgeUc9umys7utoC5XGNQi1kIoWy6UMp9XHiVpwxAyEGDQy-lakcz3RF0OjzbpSfvWdeVuz17w__&Key-Pair-Id=APKAJLOHF5GGSLRBV4ZA"> Abdi, H., & Williams, L. J. (2010). Tukey’s honestly significant difference (HSD) test. Encyclopedia of research design, 3(1), 1-5. </a>)
 
 ```{r posthoc}
+#LSD
+library(agricolae)
+lsd_test <- LSD.test(fit, 'variable')
+plot(lsd_test)
 
-
+#TUKEY HSD
+tukey <- TukeyHSD(fit)
+plot(tukey)
 ```
