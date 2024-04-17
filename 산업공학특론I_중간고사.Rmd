@@ -67,13 +67,24 @@ knitr::opts_chunk$set(fig.width=12, fig.height=12)
 
 * 활용하지 않는 변수 (date, smv, wip, idle_time, idle_men, no_of_style_change, no_of_workers)는 삭제할 것
 * 시각화 시 범주형 변수는 막대그래프로, 연속형 변수는 히스토그램으로 표현할 것
-
-```{r no_1}
+```{r no_0}
 #Ignore Warning Message
 options(warn = -1)
 
+#Load Library
+library(dplyr, verbose = F, warn.conflicts = F)  # For drop or select columns library
+library(MASS, verbose = F, warn.conflicts = F) # "Fitdistr" Baseline library
+library(fitdistrplus, verbose = F, warn.conflicts = F) # Fit distribution library
+library(knitr, verbose = F, warn.conflicts = F) # Printing Table library
+library(kableExtra, verbose = F, warn.conflicts = F) # Table Styling library
+library(FAdist) # For fitting 3 parameter distribution
+library(flexsurv)
+library(ggplot2)
+```
+
+
+```{r no_1}
 #Loading Data
-library(dplyr, verbose = F, warn.conflicts = F)  #For drop or select columns
 dat <- read.csv("산업공학특론I_중간고사 데이터.csv")
 
 #Select columns
@@ -169,20 +180,38 @@ res_norm <- optim(par = c(mean(x), var(x)), fn = norm_loglikelihood, x = x, cont
 res_weib <- optim(par = c(5, 1), fn = weib_loglikelihood, x = x, control = list(type = 2))
 res_exp <- optim(par = 1, fn = exp_loglikelihood, x = x, method="L-BFGS-B", control = list(type = 1))
 
-#Print distribution MLE value and parameters
-cat("--------------------------Gamma-------------------------------", "\n", "Maximum Likelihood Estimate of parameter:", res_gamma$par, "\n", "Maximum Log Likelihood Value:", -res_gamma$value, "\n")
-cat("--------------------------Normal------------------------------", "\n", "Maximum Likelihood Estimate of parameter:", res_norm$par, "\n", "Maximum Log Likelihood Value:", -res_norm$value, "\n")
-cat("-------------------------Weibull------------------------------", "\n", "Maximum Likelihood Estimate of parameter:", res_weib$par, "\n", "Maximum Log Likelihood Value:", -res_weib$value, "\n")
-cat("----------------------Exponential-----------------------------", "\n", "Maximum Likelihood Estimate of parameter:", res_exp$par, "\n", "Maximum Log Likelihood Value:", -res_exp$value, "\n")
-cat("----------------------Best Model------------------------------", "\n", "Best Model: Weibull Distribution", "\n","Maximum Log Likelihood Value:", max(-res_exp$value, -res_gamma$value, -res_norm$value, -res_weib$value), "\n") #Best Model = Weibull Distribution, the largest Maximum Log-likelihood estimation
+#Make Table of MLE Estimation and Choose Best Model
+num_param <- c(2, 2, 2, 1)
+idx <- c("Gamma", "Normal", "Weibull", "Exponential")
+ll <- c(res_gamma$value, res_norm$value, res_weib$value, res_exp$value)
+AIC <- -2 * ll + 2 * num_param
+BIC <- -2 * ll + log(length(x)) * num_param
+est <- rbind(res_gamma$par, res_norm$par, res_weib$par, c(res_exp$par, NaN))
+Res <- data.frame(
+  Log_likelihood = ll,
+  AIC = AIC,
+  BIC = BIC,
+  Estimated_Parameter = est
+)
+rownames(Res) <- idx
 
-#Visualization Rationale
+#Print distribution MLE value and parameters
+kable(Res, "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = F)
+
+#Visualization Rationale of Distribution
 hist(x, breaks=20, prob=T, main='Actual Productivity Data Histogram')
 curve(dgamma(x, shape=res_gamma$par[1] ,rate=res_gamma$par[2]), col='blue', add=T)
 curve(dnorm(x, mean=res_norm$par[1], sd=res_norm$par[2]), col='green', add=T)
 curve(dweibull(x, shape=res_weib$par[1], scale=res_weib$par[2]), col='red', add=T, lwd=3)
 curve(dexp(x, rate=res_exp$par), col='black', add=T)
 legend('topright', legend = c('Gamma', 'Normal', 'Weibull', 'Exponential'), col=c('blue', 'green', 'red', 'black'), lty=1)
+
+#Choose Best Model
+cat("The Best Model by BIC value")
+max_bic_idx <- which.max(Res$BIC)
+kable(Res[max_bic_idx,], "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = F)
 ```
 
 <br>
@@ -194,35 +223,93 @@ legend('topright', legend = c('Gamma', 'Normal', 'Weibull', 'Exponential'), col=
 * 단순 도시가 아닌 도시 결과에 대한 해석 결과를 설명하고, 결론을 도출할 것
 
 ```{r no_3}
-#Load library
-library(MASS, verbose = F, warn.conflicts = F)
-library(fitdistrplus, verbose = F, warn.conflicts = F)
-
-#Plot best distribution: Weibull
-Real_dist <- fitdistr(x, "weibull")
-hist(x, breaks=20, prob=T, main='Real Distribution and Estimated Distribution')
-curve(dweibull(x, shape=res_weib$par[1], scale=res_weib$par[2]), col='red', lty="dashed",add=T, lwd=3)
-curve(dweibull(x, shape=Real_dist$estimate[1], scale=Real_dist$estimate[2]), col='darkgreen', add=T, lty="dotdash", lwd=3)
-
-#Print the parameter and value
-cat("------------------------Estimation----------------------------", "\n", "Maximum Likelihood Estimate of parameter:", res_weib$par, "\n", "Maximum Log Likelihood Value:", -res_weib$value, "\n")
-cat("---------------------------Real-------------------------------", "\n", "Maximum Likelihood Estimate of parameter:", Real_dist$estimate, "\n", "Maximum Log Likelihood Value:", Real_dist$loglik, "\n")
+#Plot and Fit Actual Productivity with Best Distribution (= Weibull)
+plot(fitdist(x, "weibull"))
 ```
-##### As shown in figures below and above, there is almost no difference between the parameter estimates and the actual parameter values.
-| * | Shape | Scale | Log-Likelihood |
-|:--------- |:--------- | :--------------------- |:--------------------- |
-| Estimation Model | 5.219493 | 0.8000027 | 437.8622 |
-| Real | 5.219369 | 0.8000033 | 437.8622 |
-| Difference | 0.000124538  | 6.081956e-07 | 0.0 |
+```{r descr, echo=F}
+des <- data.frame(Description = c("at the empirical and theoretical distributions, the center and overall shape express the Wyble shape well. However, it is judged that the expression of the center value is a little insufficient and I think that the distribution of values smaller than the center is not well explained.", "Looking at the above distribution fit through the Q-Q (quantile-quantile) plot, the above plats show significant deviations in the lower and upper tail portions, suggesting that the tail portion of the empirical data may not follow the Weibull distribution perfectly.", "Empirical CDFs follow the theoretical curve closely in the middle part, but deviations exist in the lower tail part and in the stepped form of the center. This suggests that the Weibull distribution may be able to represent the data to some extent, but it may not be able to capture the distribution of extreme and central values effectively.", "Similar to the CDF plot, it typically follows a diagonal but has noticeable deviations, especially in the bottom tail of the probability and in the cascading form of the center.", "Based on the previous distribution visual interpretation, I propose a 3-parameter wibble distribution for the fit of the lower tail and the central cascade. Below, we will explain the difference between 2-parameter wibble and 3-parameter wibble."))
+
+rownames(des) <- c("Empirical and Theoretical Desnity", "Q-Q plot", "CDFs", "P-P plot", "Suggenstion")
+```
+```{r no_3-0}
+kable(des, "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = F)
+```
 
 ```{r no_3-1}
-#Visualize the parameter difference
-X_ <- c("Model Shape", "Real Shape", "Model Scale", "Real Scale")
-Y_ <- c(res_weib$par[1], Real_dist$estimate[1], res_weib$par[2], Real_dist$estimate[2])
+#Fitting Data with 3-Parameter Weibull Distribution
+weib3_loglikelihood <- function(par, x){
+  -sum(FAdist::dweibull3(x, shape=par[1], scale=par[2], thres=par[3], log=T))
+}
+res_weib3 <- optim(par = c(5, 1, 0), fn = weib3_loglikelihood, x = x, control = list(type = 2))
 
-Bar <- barplot(Y_, names.arg=X_, col=c("lightpink", "skyblue", "lightpink", "skyblue"), main=paste("Estimation Param vs Real Param"), density=60)
-text(x = Bar, y = Y_ - max(Y_) * 0.01, labels = round(Y_,6), pos = 1, cex = 1, col='black')
-legend('topright', legend = c('Estimation', 'Real'), col=c("lightpink", "skyblue"), lty=1, lwd=10)
+#Visualization Rationale
+hist(x, breaks=15, prob=T, main='3-Param Weibull   vs   2-Param Weibull')
+curve(FAdist::dweibull3(x, shape=res_weib3$par[1], scale=res_weib3$par[2], thres=res_weib3$par[3]), add=T, col='red', lwd=3)
+curve(dweibull(x, shape=res_weib$par[1], scale=res_weib$par[2]), col='blue', add=T, lwd=3)
+legend('topleft', legend = c('3-Parameter', '2-Parameter'), col=c('red', 'blue'), lwd=3)
+
+#Create Table for Comapre with (2-param Weib, 3-param Weib)
+weib_param <- c(3, 2)
+idx_w <- c("3-Parameter Weibull", "2-Parameter Weibull")
+ll_w <- c(res_weib3$value, res_weib$value)
+AIC_w <- -2 * ll_w + 2 * weib_param
+BIC_w <- -2 * ll_w + log(length(x)) * weib_param
+est_w <- rbind(res_weib3$par, c(res_weib$par, NaN))
+Res_w <- data.frame(
+  Log_likelihood = ll_w,
+  AIC = AIC_w,
+  BIC = BIC_w,
+  Shape = est_w[,1],
+  Scale = est_w[,2],
+  Threshold = est_w[,3]
+)
+rownames(Res_w) <- idx_w
+
+kable(Res_w, "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = F)
+
+#Choose Best Model
+cat("The Best Model by BIC value")
+max_bic_idx_w <- which.max(Res_w$BIC)
+kable(Res_w[max_bic_idx_w,], "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = F)
+```
+
+```{r weib3}
+data <- df$Actualproductivity
+
+shape <- res_weib3$par[1]
+scale <- res_weib3$par[2]
+location <- res_weib3$par[3]
+
+par(mfrow=c(2,2), mar=c(4, 4, 2, 1), oma=c(1, 1, 1, 1))
+# Plot Histogram with Theoretical Density
+hist(data, breaks = 30, probability = TRUE, main = "Histogram with Density Curve")
+density_values <- dweibull3(seq(min(data), max(data), length.out = 300), shape = shape, scale = scale, thres = location)
+lines(seq(min(data), max(data), length.out = 300), density_values, col = 'red')
+
+# Plot CDF
+ecdf_data <- ecdf(data) # Empirical CDF
+plot(ecdf_data, main = "Empirical vs. Theoretical CDF")
+curve(pweibull3(x, shape = shape, scale = scale, thres = location), add = TRUE, col = 'red', lwd=2)
+
+# Generate Q-Q Plot
+qqplot(qweibull(ppoints(length(data)), shape, scale, location), data,
+       main = "Q-Q Plot for Weibull Data",
+       xlab = "Theoretical Quantiles",
+       ylab = "Sample Quantiles")
+qqline(data, distribution = function(p) qweibull(p, shape, scale, location), col = "red")
+
+# Generate P-P Plot
+ppplot <- function(data, dist, params) {
+  theoretical_p <- ppoints(length(data))
+  sample_p <- sort(pweibull3(data, params[1], params[2], params[3]))
+  plot(theoretical_p, sample_p, main = "P-P Plot",
+       xlab = "Theoretical Probabilities", ylab = "Empirical Probabilities")
+  abline(0, 1, col = "red")
+}
+ppplot(data, "weibull", c(shape, scale, location))
 ```
 
 <br>
@@ -233,7 +320,7 @@ legend('topright', legend = c('Estimation', 'Real'), col=c("lightpink", "skyblue
 * 기술통계량은 목표 점수, 실제 점수 모두 검토할 것
 * 기술통계량 검토 결과를 해석하여 본인의 생각과 결론을 글로 작성할 것
 
-```{r no_4}
+```{r no_4} 
 actual_group_summary <- function(column) {
   dat_split <- split(df$Actualproductivity, column)
   print(lapply(dat_split, summary))
@@ -258,9 +345,6 @@ for(i in 1:3) {
 
 
 ```{r Table, echo=F}
-library(knitr, verbose = F, warn.conflicts = F)
-library(kableExtra, verbose = F, warn.conflicts = F)
-
 tab <- data.frame(
   "Columns" = c("Quarter", "Department", "Day"),
   "Description" = c("Significant differences between actual productivity and target productivity occur from the 3rd quarter. 3rd quarter and 4th quarter actual productivity records lower productivity than target productivity. As a result, in the 5th quarter, actual productivity, which is much higher than target productivity, is recorded due to an increase in supply to meet demand. This is because the target production plan to meet the supply volume is not met in the 3rd and 4th quarters, and the actual productivity that exceeds the target productivity is shown in the 5th quarter.", "Significant mean differences between departments are not easy to determine. Although it is difficult to judge from the given average and quanatile values alone, the difference between target productivity and actual productivity is larger in the sewing department than in the finishing department. This can be thought to be due to the fact that the sewing department's process difficulty is higher than that of the finishing department, which increases the reprocessing rate due to the defect rate.", "The target productivity and actual productivity of each day of the week show the greatest difference on weekends. Friday is designated as a company holiday, and as a result, Saturday after the holiday records actual productivity that exceeds target productivity. This indicates that process efficiency increases significantly after the holidays. Conversely, on Sundays, actual productivity is recorded below target productivity because employees go to work on a day when others do not go to work. Among weekdays, Wednesday shows the biggest difference. It can be thought that this is the result of the aftereffects of working four days in a row on Saturday, Sunday, Monday, and Tuesday.")
@@ -384,10 +468,10 @@ cat("Proposition-test estimated value : ", P_res$estimate, "\n")
 #Fifth step : Result
 cat("Proposition-test's p-value is larger than alpha(=0.01)?",V_res$p.value > alpha/2, "\n")
 if(V_res$p.value >= alpha/2) {
-  print("Choose H0: Each department's productivity acheivement rate is same.\n")
+  cat("Choose H0: Each department's productivity acheivement rate is same.\n")
 }
 if(V_res$p.value < alpha/2) {
-  print("Choose H1: Each department's productivity acheivement rate is different.\n")
+  cat("Choose H1: Each department's productivity acheivement rate is different.\n")
 }
 ```
 
@@ -410,12 +494,21 @@ cat("H1: Regardless Day of Average Team is different.\n")
 alpha <- 0.05
 
 #Data
-DayTeam <- table(df$Day, df$Team)
+DayTeam <- table(df$Day, df$Team) #Create Table with Team and Day
+
+#Day Average Team
+AvgDay <- c()
+for(i in 1:nrow(DayTeam)) {
+  AvgDay[i] <- mean(DayTeam[i,]*c(1:12))
+}
+SameAvg <- rep(mean(AvgDay), length(AvgDay))
+Chidat <- rbind(AvgDay, SameAvg)
 
 #Third step : Chi-squared Hypothesis Test
-chi_res <- chisq.test(DayTeam)
+chi_res <- chisq.test(Chidat)
 
 #Fourth step : Statistic value
+cat("Chi-squared-test p-value : ", chi_res$p.value, "\n")
 cat("Chi-squared-test value : ", chi_res$statistic, "\n")
 cat("Chi-squared-test parameter value : ", chi_res$parameter,"\n")
 
@@ -443,12 +536,31 @@ if(chi_res$p.value < alpha) {
 cat("H0: There is no correlation with overtime and incentive. \n")
 cat("H1: There is correlation with overtime and incentive. \n")
 
+#Load Data EDA
+df_SOC <- subset(df, Overtime < 8000 & Incentive < 80)
+
+#Discretize continuous data
+Discret <- function(x) {
+  cut(x, breaks=5, include.lowest=T)
+}
+
+for(col in 1:ncol(df_SOC)) {
+  # 연속형 데이터만을 이산화
+  if(is.numeric(df_SOC[, col]) || is.integer(df_SOC[, col])) {
+    df_SOC[, col] <- Discret(df_SOC[, col])
+  }
+}
+
+#Create Table
+tab_SOC <- table(df_SOC$Incentive, df_SOC$Overtime)
+kable(tab_SOC, "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = F)
+
 #Second step : Set alpha
 alpha <- 0.1
 
 #Third step : Chi-squared Hypothesis Test
-df_SOC <- subset(df, Overtime < 8000 & Incentive < 80)
-SOC <- chisq.test(df_SOC$Incentive, df_SOC$Overtime)
+SOC <- chisq.test(tab_SOC)
 
 #Fourth step : Statistic value
 cat("Chi-squared-test value : ", SOC$statistic, "\n")

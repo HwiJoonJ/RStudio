@@ -1,0 +1,65 @@
+---
+title: "산업공학특론I_7주차_분산분석_실습"
+author: "Munwon Lim"
+date: "4/17/2024"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.width=9, fig.height=12)
+```
+
+<br>
+<br>
+<br>
+
+## [데이터 분석]
+
+(https://github.com/psanabriaUC/BatteryDatasetImplementation/tree/master)
+
+리튬 이온 배터리의 운전 시험 데이터
+
+3개의 리튬 이온 배터리에 대하여, 특정 프로파일로 시험을 진행
+
+충전-방전 사이클 진행에 따라 배터리의 노화가 이루어지며, 배터리 수명 종료 (EOL) 기준까지 데이터 확보
+
+* cycle: 프로파일 운전 횟수
+* ambient_temperature: 분위기 온도
+* datetime: 일시
+* capacity: 2.7V까지 방전된 배터리 용량(Ahr)
+* voltage_measured: 배터리 단자 전압(V)
+* current_measured: 배터리 출력 전류(A)
+* temperature_measured: 배터리 온도(℃)
+* current_load: 부하에서 측정된 전류(암페어)
+* voltage_load: 부하에서 측정된 전압(볼트)
+* time: 운전 시간
+
+<br>
+<br>
+<br>
+
+### 1. 데이터 탐색 (EDA) 및 전처리
+```{r eda}
+
+
+```
+
+<br>
+
+### 2. 분산분석
+```{r anova}
+
+
+```
+
+<br>
+
+### 3. 사후검정
+
+(Reference: <a href="https://d1wqtxts1xzle7.cloudfront.net/71815004/abdi-HSD2010-pretty-libre.pdf?1633663014=&response-content-disposition=inline%3B+filename%3DTukeys_Honestly_Signiflcant_Difierence_H.pdf&Expires=1712988568&Signature=Nyf6xCVSgBknn2yDmEqL7XTvlu~jYNlMYpcO6c51wwhrD9iQeL6oeoxwbu-LTA~Fa90eMv8mIaE~yX7Mq2aSUOs7Rw83RP2TuXy12E0kcl8bKkQIphIOiy5BIA85N8a~NviRgroK~aDxFxV18BxIlNEJ1ip6Ptm-F9JMFJIgYlwL-sWO6Cq-ARaz2vmO2Og66H4XvaFbUe3sYGW~E7Cudt5SKsXcZV0hZPCaxDWI65Kb-zlc9ZV6YZ0zSss0lc-T--CveIq80HY1NtgeUc9umys7utoC5XGNQi1kIoWy6UMp9XHiVpwxAyEGDQy-lakcz3RF0OjzbpSfvWdeVuz17w__&Key-Pair-Id=APKAJLOHF5GGSLRBV4ZA"> Abdi, H., & Williams, L. J. (2010). Tukey’s honestly significant difference (HSD) test. Encyclopedia of research design, 3(1), 1-5. </a>)
+
+```{r posthoc}
+
+
+```
