@@ -1,0 +1,133 @@
+---
+title: '산업공학특론I_9주차_다중회귀분석_실습'
+author: 'Munwon Lim'
+date: '5/1/2024'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.width=9, fig.height=9)
+```
+
+<br>
+<br>
+<br>
+
+
+
+## [데이터 분석]
+
+(https://www.kaggle.com/datasets/rukenmissonnier/manufacturing-data-for-polynomial-regression?resource=download)
+
+다양한 공정 환경과 제품 품질 간의 관계를 탐색하기 위한 데이터셋
+
+공정 조건을 나타내는 변수와 제조된 항목의 품질 등급을 나타내는 변수를 모두 포함
+
+* TemperatureC: 제조 공정 중 측정된 섭씨 온도
+* PressurekPa: 제조 공정 중 가해진 압력을 킬로파스칼 (kPa) 단위로 측정
+* TemperaturexPressure: 온도와 압력 사이의 상호 작용, 두 공정 변수의 결합된 영향을 고려
+* MaterialFusionMetric: 온도의 제곱과 압력의 세제곱의 합으로 계산된 파생 메트릭 - 제조 공정 중 재료 융합 관련 측정값
+* MaterialTransformationMetric: 온도의 세제곱에서 압력의 제곱을 뺀 것으로 계산된 다른 파생 메트릭 - 재료 변형 역학 관련 측정값
+* Quality Rating: 생산된 항목의 전체 품질 등급으로, 최종 제품의 품질을 측정하는 지표
+
+<br>
+<br>
+<br>
+
+### 1. 데이터 탐색 (EDA) 및 전처리
+```{r eda}
+
+# 데이터 로드 및 요약
+
+
+# 데이터 전처리
+
+
+# 학습, 테스트셋 분할
+
+
+# 데이터 시각화
+
+
+```
+
+<br>
+
+### 2. 상관분석
+```{r correlation}
+
+# 상관계수 테이블 생성
+
+
+# 상관계수 테이블 시각화
+
+
+```
+
+<br>
+
+### 3. 다중회귀분석
+
+```{r regression}
+
+# 다중회귀모형 수립
+# 1) CV 수행 X
+
+# 2) CV 수행 O
+
+
+
+# 모델 수립 결과
+
+```
+
+
+<br>
+
+### 4. 변수선택법
+
+```{r variableselection}
+
+# 변수선택법 시행
+# 1) CV 수행 X
+
+# 2) CV 수행 O
+
+
+
+# 모델 수립 결과
+
+```
+
+
+<br>
+
+### 5. 정규화 회귀분석
+
+```{r regularization}
+
+# 정규화 회귀모형 수립
+# 1) CV 수행 X
+
+# 2) CV 수행 O
+
+
+
+# 모델 수립 결과
+
+```
+
+<br>
+
+### 6. 모형 평가 
+
+```{r evaluation}
+
+# 적합결과 평가 (학습모형 대상, 정규화 회귀분석은 AIC 평가 불가능)
+
+
+# 예측력 평가 (테스트셋 대상)
+
+
+```

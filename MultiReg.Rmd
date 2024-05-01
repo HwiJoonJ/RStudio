@@ -1,0 +1,73 @@
+---
+title: 'MultiReg'
+author: 'Hwijun'
+date: '5/01/2024'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.width=9, fig.height=9)
+```
+<br>
+오늘 실습으로 했던 문제들을 손으로 푸는게 기말 문제 유형으로 나옵니다.
+<br>
+
+### Example[1]
+```{r one}
+x <- cbind(c(175,160,182,165),
+           c(68,55,85,72))
+x <- cbind(1, x)
+y <- c(22.2, 21.5, 25.6, 26.4)
+
+#beta_hat = (X^T X)^(-1) (X^T Y)
+
+xtranx <- t(x) %*% x
+xtrany <- t(x) %*% y
+
+beta_hat <- solve(xtranx) %*% xtrany
+beta_hat 
+```
+
+### Example[2]
+```{r two}
+
+#Calc SSR, SST, SSE using y, mean(y), y_hat
+alpha <- 0.05
+
+yhat <- x %*% beta_hat
+
+SS <- function(y, ybar) {
+  sum((y-ybar)^2)
+}
+SSR <- SS(yhat, mean(y))
+SSE <- SS(y, mean(y))
+SST <- SSR + SSE
+
+SSS <- c(SSR, SSE)
+df <- c(ncol(x)-1, length(y)-ncol(x))
+MSS <- SSS/df
+F0 <- MSS[1]/MSS[2]
+
+qf(alpha, df[1], df[2], lower.tail=F) #F dist quantile
+
+rsq <- SSR/SST
+R_adj <- 1 - 3/(4-3)*(1-rsq)
+R_adj
+```
+
+### Example[3]
+```{r three}
+xnew <- c(1, 170, 60)
+ynew <- xnew %*% beta_hat
+
+#chisq = MSE
+Cinterv <- qt(0.025, df=4-3, lower.tail=F)*sqrt(MSS[2] * t(xnew) %*% xnew)
+Pinterv <- qt(0.025, df=4-3, lower.tail=F)*sqrt(1 + MSS[2] * t(xnew) %*% xnew)
+
+CI <- c(ynew-Cinterv, ynew+Cinterv)
+PI <- c(ynew-Pinterv, ynew+Pinterv)
+
+cat("Confidence Interval: [", CI[1], "~", CI[2], "]")
+cat("Prediction Interval: [", PI[1], "~", PI[2], "]")
+```
