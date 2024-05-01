@@ -1,6 +1,6 @@
 ---
 title: '산업공학특론I_9주차_다중회귀분석_실습'
-author: 'Munwon Lim'
+author: 'HwiJun Jung'
 date: '5/1/2024'
 output: html_document
 ---
@@ -39,16 +39,22 @@ knitr::opts_chunk$set(fig.width=9, fig.height=9)
 ```{r eda}
 
 # 데이터 로드 및 요약
-
+dat <- read.csv('산업공학특론I_9주차_실습 데이터.csv')
+head(dat)
 
 # 데이터 전처리
-
+colnames(dat) <- gsub('[.]', '', colnames(dat))
+summary(dat)
 
 # 학습, 테스트셋 분할
+set.seed(0)
+train_idx <- sample(1:nrow(dat), 0.8*nrow(dat))
 
+train <- dat[train_idx,]
+test <- dat[-train_idx,]
 
 # 데이터 시각화
-
+plot(train)
 
 ```
 
@@ -58,10 +64,12 @@ knitr::opts_chunk$set(fig.width=9, fig.height=9)
 ```{r correlation}
 
 # 상관계수 테이블 생성
-
+library(corrplot)
+corr <- cor(train, method='pearson')
 
 # 상관계수 테이블 시각화
-
+col <- colorRampPalette(c('red', 'blue'))
+corrplot(corr, method='ellipse', col=col(50), type='lower', addCoef.col = 'black')
 
 ```
 
@@ -73,13 +81,17 @@ knitr::opts_chunk$set(fig.width=9, fig.height=9)
 
 # 다중회귀모형 수립
 # 1) CV 수행 X
+reg <- lm(QualityRating ~ . , train)
 
 # 2) CV 수행 O
-
-
+library(caret)
+train_cv <- trainControl(method='cv', number=10)
+reg_cv <- train(QualityRating ~ . , train, method='lm', trControl=train_cv)
+reg_cv
 
 # 모델 수립 결과
-
+summary(reg)
+summary(reg_cv)
 ```
 
 
@@ -91,13 +103,21 @@ knitr::opts_chunk$set(fig.width=9, fig.height=9)
 
 # 변수선택법 시행
 # 1) CV 수행 X
+reg_fwd <- step(reg, direction='forward') #Forward Selection
+reg_bwd <- step(reg, direction='backward') #Backward Deletion
+reg_sws <- step(reg, direction='both') #Stepwise Selection
 
 # 2) CV 수행 O
-
-
+reg_cv_fwd <- train(QualityRating ~ . , train, method='glmStepAIC', 
+                    trControl=train_cv, direction='forward', trace=F) #Forward Selection
+reg_cv_bwd <- train(QualityRating ~ . , train, method='glmStepAIC', 
+                    trControl=train_cv, direction='backward', trace=F) #Backward Deletion
+reg_cv_sws <- train(QualityRating ~ . , train, method='glmStepAIC', 
+                    trControl=train_cv, direction='both', trace=F) #Stepwise Selection
 
 # 모델 수립 결과
-
+summary(reg_fwd); summary(reg_bwd); summary(reg_sws) #No Cross-Validation
+summary(reg_cv_fwd); summary(reg_cv_bwd); summary(reg_cv_sws) #Cross-Validation
 ```
 
 
@@ -108,13 +128,38 @@ knitr::opts_chunk$set(fig.width=9, fig.height=9)
 ```{r regularization}
 
 # 정규화 회귀모형 수립
+library(glmnet)
 # 1) CV 수행 X
+x_train <- as.matrix(train[,1:5])
+y_train <- as.matrix(train['QualityRating'])
+
+Lasso <- glmnet(x_train, y_train, alpha=1)
+Ridge <- glmnet(x_train, y_train, alpha=0)
+Elastic <- glmnet(x_train, y_train, alpha=0.5)
+
+par(mfrow=c(2,2))
+plot(Lasso, xvar='lambda')
+legend('bottomright', legend=colnames(x_train), col=1:5, lty=1)
+plot(Ridge, xvar='lambda')
+legend('bottomright', legend=colnames(x_train), col=1:5, lty=1)
+plot(Elastic, xvar='lambda')
+legend('bottomright', legend=colnames(x_train), col=1:5, lty=1)
 
 # 2) CV 수행 O
+Lasso_cv <- cv.glmnet(x_train, y_train, alpha=1)
+Ridge_cv <- cv.glmnet(x_train, y_train, alpha=0)
+Elastic_cv <- cv.glmnet(x_train, y_train, alpha=0.5)
 
+par(mfrow=c(2,2))
+plot(Lasso_cv)
+plot(Ridge_cv)
+plot(Elastic_cv)
 
+Lasso_cv$lambda.1se
+Lasso_cv$lambda.min
 
 # 모델 수립 결과
+coef(Lasso_cv); coef(Ridge_cv); coef(Elastic_cv)
 
 ```
 
@@ -125,9 +170,57 @@ knitr::opts_chunk$set(fig.width=9, fig.height=9)
 ```{r evaluation}
 
 # 적합결과 평가 (학습모형 대상, 정규화 회귀분석은 AIC 평가 불가능)
+Eval <- function(regm) {
+  smy <- summary(regm)
+  mse <- smy$sigma^2
+  adj_r <- smy$adj.r.squared
+  aic <- AIC(regm)
+  result <- c(mse, adj_r, aic)
+  names(result) <- c("MSE", "Adj R", "AIC")
+  print(result)
+}
 
+Eval(reg); Eval(reg_sws)
+
+EvalModel <- function(mod) {
+  pred <- predict(mod, x_train)
+  SSE <- sum((pred-y_train)^2)
+  SSR <- sum((pred-mean(y_train))^2)
+  SST <- SSE+SSR
+  MSE <- SSE/(nrow(x_train)-length(reg$coef))
+  AdjR <- 1 - (nrow(x_train)-1)/(nrow(x_train)-length(reg$coef))*SSR/SST
+  res <- c(MSE, AdjR)
+  print(res)
+}
+
+EvalModel(Lasso_cv); EvalModel(Ridge_cv); EvalModel(Elastic_cv)
 
 # 예측력 평가 (테스트셋 대상)
+library(Metrics)
 
+#Reg
+RegRes <- function(mod) {
+  pred_reg <- predict(mod, test)
+  res <- c(mae(pred_reg, test$QualityRating), mse(pred_reg, test$QualityRating), 
+           rmse(pred_reg, test$QualityRating))
+  names(res) <- c("MAE", "MSE", "RMSE")
+  print(res)
+}
 
+NormRes <- function(mod) {
+  newx <- as.matrix(test[,1:5])
+  pred <- predict(mod, newx)
+  res <- c(mae(pred, test$QualityRating), mse(pred, test$QualityRating), 
+           rmse(pred, test$QualityRating))
+  names(res) <- c("MAE", "MSE", "RMSE")
+  print(res)
+}
+
+stepres <- rbind(RegRes(reg), RegRes(reg_fwd), RegRes(reg_bwd), RegRes(reg_sws))
+rownames(stepres) <- c("Basic", "Forward", "Backward", "Stepwise")
+print(stepres)
+
+normres <- rbind(NormRes(Lasso_cv), NormRes(Ridge_cv), NormRes(Elastic_cv))
+rownames(normres) <- c("Lasso", "Ridge", "Elastic")
+print(normres)
 ```
