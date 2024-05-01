@@ -1,0 +1,131 @@
+---
+title: '산업공학특론I_8주차_상관분석 & 단순회귀분석_실습'
+author: 'Munwon Lim'
+date: '4/24/2024'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.width=9, fig.height=9)
+```
+
+<br>
+<br>
+<br>
+
+
+
+## [데이터 분석]
+
+(https://github.com/psanabriaUC/BatteryDatasetImplementation/tree/master)
+
+리튬 이온 배터리의 운전 시험 데이터 
+
+3개의 리튬 이온 배터리에 대하여, 특정 프로파일로 충방전 시험을 진행
+
+충방전 사이클 진행에 따라 배터리의 노화가 이루어지며, 배터리 수명 종료 (EOL) 기준까지 데이터 확보
+
+* cycle: 프로파일 운전 횟수
+* ambient_temperature: 분위기 온도
+* datetime: 일시
+* capacity: 2.7V까지 방전된 배터리 용량(Ahr)
+* voltage_measured: 배터리 단자 전압(V)
+* current_measured: 배터리 출력 전류(A)
+* temperature_measured: 배터리 온도(℃)
+* current_load: 부하에서 측정된 전류(암페어)
+* voltage_load: 부하에서 측정된 전압(볼트)
+* time: 운전 시간
+
+(7주차 활용 데이터와 동일하나, B0005 데이터만 수행하여 분석 에정)
+
+<br>
+<br>
+<br>
+
+### 1. 데이터 탐색 (EDA) 및 전처리
+```{r eda}
+
+# 데이터 로드 및 요약
+dat <- read.csv("B0005.csv")
+summary(dat)
+
+# 데이터 전처리 1 - 불필요한 데이터 제거
+dat <- dat[,-c(2,3,10)]
+head(dat)
+
+# 데이터 전처리 2 - cycle 단위 축소
+dat <- aggregate(. ~cycle, data=dat, FUN = mean)
+head(dat)
+
+# 데이터 시각화
+plot(dat)
+
+```
+
+<br>
+
+### 2. 상관분석
+```{r correlation}
+
+install.packages('corrplot')
+library(corrplot)
+
+#상관계수 테이블 생성 (선형적 관계를 정량적으로 측정 - 피어슨 상관계수)
+#켄달 상관계수
+#스피어만 상관계수
+corr_p <- cor(dat, method='pearson')
+corr_k <- cor(dat, method='kendall')
+corr_s <- cor(dat, method='spearman')
+
+# 상관계수 테이블 시각화
+col <- colorRampPalette(c('red', 'blue'))
+corrplot(corr_p, col=col(200), method='ellipse', addCoef.col = 'black', type='lower', title="Pearson Correlation Plot")
+
+# 상관계수 유의성 검정
+x <- dat$cycle
+y <- dat$capacity
+
+cor(x,y)
+
+cor.test(x, y, alternative='two.sided', method='pearson', conf.level=0.95)
+
+```
+
+<br>
+
+### 3. 단순회귀분석
+
+```{r regression}
+
+# 회귀모델 수립
+reg <- lm(y~x)
+
+# 모델 수립 결과
+summary(reg)
+
+# 적합결과 시각화
+par(mfrow=c(2,2))
+plot(reg)
+
+plot(x, y, pch=16)
+abline(a = reg$coef[1], b = reg$coef[2], col='red')
+
+# 신뢰구간, 예측구간 산출
+new_dat <- 1:max(dat$cycle)
+
+conf <- predict.lm(reg, data.frame(new_dat), interval="confidence")
+pred <- predict.lm(reg, data.frame(new_dat), interval="prediction")
+
+plot(x, y, pch=16)
+for(i in 2:3) {
+  lines(new_dat, conf[,i], lwd=2, lty=2, col=2)
+  lines(new_dat, pred[,i], lwd=2, lty=3, col=3)
+}
+
+# 분산분석
+anova(reg)
+
+# 회귀모형 가정 검토
+
+```
