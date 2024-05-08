@@ -67,7 +67,7 @@ summary(dat)
 
 # Train-Test split
 set.seed(0)
-train_idx <- sample(1:nrow(dat), 0.7*nrow(dat))
+train_idx <- sample(1:nrow(dat), 0.8*nrow(dat))
 train <- as.data.frame(dat[train_idx,])  
 test <- as.data.frame(dat[-train_idx,])
 nrow(train); nrow(test)
