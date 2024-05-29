@@ -68,6 +68,65 @@ knitr::opts_chunk$set(echo = TRUE)
 * 데이터 전처리 순서 (학습, 테스트셋 분할 전후)를 꼼꼼히 살펴보고 진행할 것
 
 ```{r preprocess}
+dat <- read.csv("산업공학특론I_13-14주차_데이터.csv")
+head(dat)
+
+# 각 컬럼에서 벗어나는 값들을 NA로 대체
+for(i in 0:14) {
+  actual_col <- paste0("Stage1.Output.Measurement", i, ".U.Actual")
+  setpoint_col <- paste0("Stage1.Output.Measurement", i, ".U.Setpoint")
+  
+  mean_act <- mean(dat[[actual_col]], na.rm = TRUE)
+  sd_act <- sd(dat[[actual_col]], na.rm = TRUE)
+  
+  mean_set <- mean(dat[[setpoint_col]], na.rm = TRUE)
+  sd_set <- sd(dat[[setpoint_col]], na.rm = TRUE)
+  
+  # 노이즈 범위 계산
+  lower_bound <- mean_act - threshold * sd_act
+  upper_bound <- mean_act + threshold * sd_act
+  lower <- mean_set - threshold * sd_set
+  upper <- mean_set + threshold * sd_set
+  
+  # 범위를 벗어나는 값들을 NA로 대체
+  dat[[actual_col]][dat[[actual_col]] < lower_bound | dat[[actual_col]] > upper_bound] <- NA
+  dat[[setpoint_col]][dat[[setpoint_col]] < lower | dat[[setpoint_col]] > upper] <- NA
+}
+
+# NA 값을 중앙값으로 대체하는 함수
+replace_na_with_median <- function(x) {
+  x[is.na(x)] <- median(x, na.rm = TRUE)
+  return(x)
+}
+
+# 각 컬럼에 대해 NA 값을 중앙값으로 대체
+for(i in 0:14) {
+  actual <- paste0("Stage1.Output.Measurement", i, ".U.Actual")
+  setpoint <- paste0("Stage1.Output.Measurement", i, ".U.Setpoint")
+  dat[[actual]] <- replace_na_with_median(dat[[actual]])
+  dat[[setpoint]] <- replace_na_with_median(dat[[setpoint]])
+}
+
+par(mar = c(2, 2, 2, 2))
+par(mfrow = c(5, 3))
+for(i in 0:14) {
+  acol <- paste0("Stage1.Output.Measurement", i, ".U.Actual")
+  scol <- paste0("Stage1.Output.Measurement", i, ".U.Setpoint")
+  plot(dat[[acol]], col = "blue", ylab = "Measurements", xlab = "Index",
+       main = paste("Actual vs Setpoint - Measurement", i))
+  points(dat[[scol]], col = "red")
+  legend("topright", legend = c("Actual", "Setpoint"), col = c("blue", "red"), pch = 1)
+}
+
+actcol <- paste0("Stage1.Output.Measurement", 0:14, ".U.Actual")
+setcol <- paste0("Stage1.Output.Measurement", 0:14, ".U.Setpoint")
+target <- data.frame(Average = rowMeans(dat[, actcol], na.rm = TRUE))
+setpoint <- data.frame(Average = rowMeans(dat[, setcol], na.rm = TRUE))
+plot(target$Average, col = "blue", ylab = "Measurements", xlab = "Index",
+     main = paste("Actual vs Setpoint - Measurement"), ylim=c(0,14))
+points(setpoint$Average, col = "red")
+legend("topright", legend = c("Actual", "Setpoint"), col = c("blue", "red"), pch = 1)
+threshold <- 1
 
 ```
 
