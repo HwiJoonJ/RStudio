@@ -1,0 +1,208 @@
+---
+title: "산업공학특론I_12주차_고급회귀분석_실습"
+author: "Munwon Lim"
+date: "2024-05-22"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.width=9, fig.height=9)
+```
+
+<br>
+<br>
+<br>
+
+
+
+## [데이터 분석]
+
+(https://www.kaggle.com/datasets/ifteshanajnin/carinsuranceclaimprediction-classification?resource=download)
+
+차량 보험 가입자에 대한 데이터로, 보험 기간, 차량의 연령, 차량 소유자의 연령, 도시의 인구 밀도, 차량의 제조사 및 모델, 출력, 엔진 유형 등의 속성을 포함
+안전도와 더불어, 보험 가입자가 향후 6개월 내에 청구를 제기하는지 여부를 기록
+
+```{r table, echo=F}
+library(knitr)
+tab <- data.frame(
+Variable = c('policy_id', 'policy_tenure', 'age_of_car', 'age_of_policyholder', 'population_density', 'make', 'segment', 'model', 'fuel_type', 'max_torque', 'max_power', 'engine_type', 'airbags', 'is_esc', 'is_adjustable_steering', 'is_tpms', 'is_parking_sensors', 'is_parking_camera', 'rear_brakes_type', 'displacement', 'cylinder', 'transmission_type', 'gear_box','steering_type', 'turning_radius', 'length', 'width', 'height', 'gross_weight', 'is_front_fog_lights', 'is_rear_window_wiper', 'is_rear_window_washer', 'is_rear_window_defogger', 'is_brake_assist', 'is_power_door_lock', 'is_central_locking', 'is_power_steering', 'is_driver_seat_height_adjustable', 'is_day_night_rear_view_mirror', 'is_ecw', 'is_speed_alert', 'ncap_rating', 'is_claim'),
+Description = c('가입자ID', '가입기간', '차량 연령(연 단위로 정규화)', '가입자 연령(연 단위로 정규화)', '가입자 거주 도시의 인구 밀도', '차량 제조사 코드', '세그먼트 (A/B1/B2/C1/C2)', '코드화된 이름', '연료 유형', '최대 토크 (Nm@rpm)', '최대 출력 (bhp@rpm)', '엔진 유형', '에어백의 수', '전자 안정성 제어(ESC) 장치 유무',  '핸들 조절 가능 유무', '타이어 압력 모니터링 시스템(TPMS) 유무', '주차 센서 유무', '주차 카메라 유무', '후방 브레이크 유형', '엔진 배기량 (cc)', '엔진에 있는 실린더 수', '변속기 유형', '기어 수','파워 스티어링 유형', '회전 시 필요 공간 (m)', '길이 (mm)', '너비 (mm)', '높이 (mm)', '최대 허용 중량 (kg)', '전방 안개등 유무', '후방 와이퍼 유무', '후방 세척기 유무', '후방 김서림 방지기 유무', '브레이크 보조 기능 유무', '파워 도어 잠금 장치 유무', '중앙 잠금 기능 유무', '파워 스티어링 유무', '운전석 높이 조절 기능 유무', '주야간 후방 미러 유무', '엔진 점검 경고등(ECW) 유무', '속도 경고 시스템 유무', '안전 점수','클레임 발생 유무'))
+kable(tab, col.names = c('변수', '설명'), caption = 'Variable Description Table')
+
+```
+
+<br>
+<br>
+<br>
+
+### 1. 데이터 탐색 (EDA) 및 전처리
+```{r eda}
+dat <- read.csv("산업공학특론I_12주차_실습 데이터.csv")
+head(dat)
+
+table(dat$is_claim)
+dat <-dat[dat$is_claim==1,]
+
+dat <- subset(dat, select=-c(policy_id, is_claim))
+colnames(dat)
+
+dat$make <- as.factor(dat$make)
+
+ynidx <- grep('is_', colnames(dat))
+colnames(dat)[ynidx]
+
+apply(dat[,ynidx], 2, unique)
+for(i in ynidx) {
+  dat[,i] <- ifelse(dat[,i]=='Yes', 1, 0)
+}
+apply(dat[,ynidx], 2, unique)
+
+dummy <- dummyVars(~.,data=dat)
+dat <- predict(dummy, newdata=dat)
+dat <- data.frame(dat)
+colnames(dat)
+
+set.seed(0)
+trainidx <- sample(1:nrow(dat), 0.7*nrow(dat))
+trainset <- dat[trainidx,]
+testset <- dat[-trainidx,]
+
+colnames(trainset)
+scaling <- preProcess(trainset[,-ncol(trainset)], method=c('center', 'scale'))
+trainsc <- predict(scaling, trainset[, -ncol(trainset)])
+testsc <- predict(scaling, testset[, -ncol(testset)])
+head(trainset)
+
+trainsc$ncap_rating <- trainset$ncap_rating
+testsc$ncap_rating <- testset$ncap_rating
+head(trainsc)
+```
+
+<br>
+
+### 2. 의사결정나무
+
+```{r dt}
+install.packages("rpart")
+library(rpart)
+
+train_control <- trainControl(method='cv', number=10)
+
+rpart_control <- rpart.control(maxdepth = 5, minsplit=2)
+dt_grid <- expand.grid(.cp=seq(0.01,0.1,by=0.01))
+
+dt <- train(ncap_rating~., data=trainsc, method='rpart', 
+            trControl=train_control, control=rpart_control,
+            tuneGrid = dt_grid)
+dt
+
+install.packages("rpart.plot")
+library(rpart.plot)
+rpart.plot(dt$finalModel)
+```
+
+<br>
+
+### 3. 서포트벡터회귀
+```{r svr}
+install.packages("e1071")
+library(e1071)
+
+svm_grid <- expand.grid(.C=c(0.1,1,10), .sigma=c(0.01,0.05,0.1))
+
+svr <- train(ncap_rating~., data=trainsc, method='svmRadial', 
+            trControl=train_control, tuneGrid = svm_grid)
+
+svr$finalModel
+
+```
+
+<br>
+
+### 4. 다중 퍼셉트론
+```{r mlp}
+install.packages("net")
+library(nnet)
+
+mlp_grid <- expand.grid(.size=c(1,2,3), .decay=c(0, 0.001, 0.01))
+
+mlp <- train(ncap_rating~., data=trainsc, method='nnet', 
+            trControl=train_control, tuneGrid = mlp_grid,
+            linout=T, trace=F)
+
+install.packages("NeuralNetTools")
+library(NeuralNetTools)
+
+plotnet(mlp$finalModel)
+```
+
+<br>
+
+### 5. 랜덤포레스트
+
+```{r rf}
+install.packages("doParallel")
+install.packages("randomForest")
+library(doParallel)
+library(randomForest)
+
+cl <- makeCluster(detectCores()-1)
+registerDoParallel(cl)
+
+rf <- train(ncap_rating~., data=trainsc, method='rf', 
+            trControl=train_control)
+
+stopCluster(cl)
+registerDoSEQ()
+
+rf$finalModel
+
+varImpPlot(rf$finalModel, main="Feature Importance")
+```
+
+<br>
+
+### 6. XGBoost
+
+```{r xgb}
+install.packages("xgboost")
+library(xgboost)
+
+cl <- makeCluster(detectCores()-1)
+registerDoParallel(cl)
+
+xgb <- train(ncap_rating~., data=trainsc, method='xgbTree', 
+            trControl=train_control)
+
+stopCluster(cl)
+registerDoSEQ()
+
+xgb$finalModel
+
+xgbimp <- xgb.importance(model=xgb$finalModel)
+xgb.plot.importance(xgbimp)
+```
+
+<br>
+
+### 7. 모델 평가
+
+```{r eval}
+library(Metrics)
+
+evaluate <- function(model, test) {
+  pred <- predict(model$finalModel, newdata=test)
+  result <- c(mae(pred, test$ncap_rating), 
+              rmse(pred, test$ncap_rating),
+              mse(pred, test$ncap_rating))
+  names(result) <- c(MAE, RMSE, MSE)
+  print(result)
+}
+
+evaluate(dt, testsc)
+evaluate(svr, testsc)
+evaluate(mlp, testsc)
+evaluate(rf, testsc)
+evaluate(xgb, testsc)
+```
