@@ -71,14 +71,21 @@ knitr::opts_chunk$set(echo = TRUE)
 dat <- read.csv("산업공학특론I_13-14주차_데이터.csv")
 head(dat)
 
+par(mar = c(2, 2, 2, 2))
+par(mfrow = c(5, 3))
 # 각 컬럼에서 벗어나는 값들을 NA로 대체
 for(i in 0:14) {
+  # Actual / Setpoint Measurement 컬럼명 추출
   actual_col <- paste0("Stage1.Output.Measurement", i, ".U.Actual")
   setpoint_col <- paste0("Stage1.Output.Measurement", i, ".U.Setpoint")
   
+  # 0보다 작거나 같다면 NA로 대체
+  dat[[actual_col]][dat[[actual_col]] <= 0 ] <- NA
+  dat[[setpoint_col]][dat[[setpoint_col]] <= 0 ] <- NA
+  
+  # 평균 / 표준편차 추출
   mean_act <- mean(dat[[actual_col]], na.rm = TRUE)
   sd_act <- sd(dat[[actual_col]], na.rm = TRUE)
-  
   mean_set <- mean(dat[[setpoint_col]], na.rm = TRUE)
   sd_set <- sd(dat[[setpoint_col]], na.rm = TRUE)
   
@@ -91,6 +98,16 @@ for(i in 0:14) {
   # 범위를 벗어나는 값들을 NA로 대체
   dat[[actual_col]][dat[[actual_col]] < lower_bound | dat[[actual_col]] > upper_bound] <- NA
   dat[[setpoint_col]][dat[[setpoint_col]] < lower | dat[[setpoint_col]] > upper] <- NA
+  
+  # NA값들을 모두 중앙값으로 대체
+  dat[[actual_col]] <- replace_na_with_median(dat[[actual_col]])
+  dat[[setpoint_col]] <- replace_na_with_median(dat[[setpoint_col]])
+  
+  # Plotting
+  plot(dat[[actual_col]], col = "blue", ylab = "Measurements", xlab = "Index",
+     main = paste("Actual vs Setpoint - Measurement", i), ylim=c(0,33))
+  points(dat[[setpoint_col]], col = "red")
+  legend("topright", legend = c("Actual", "Setpoint"), col = c("blue", "red"), pch = 1)
 }
 
 # NA 값을 중앙값으로 대체하는 함수
@@ -99,25 +116,7 @@ replace_na_with_median <- function(x) {
   return(x)
 }
 
-# 각 컬럼에 대해 NA 값을 중앙값으로 대체
-for(i in 0:14) {
-  actual <- paste0("Stage1.Output.Measurement", i, ".U.Actual")
-  setpoint <- paste0("Stage1.Output.Measurement", i, ".U.Setpoint")
-  dat[[actual]] <- replace_na_with_median(dat[[actual]])
-  dat[[setpoint]] <- replace_na_with_median(dat[[setpoint]])
-}
-
-par(mar = c(2, 2, 2, 2))
-par(mfrow = c(5, 3))
-for(i in 0:14) {
-  acol <- paste0("Stage1.Output.Measurement", i, ".U.Actual")
-  scol <- paste0("Stage1.Output.Measurement", i, ".U.Setpoint")
-  plot(dat[[acol]], col = "blue", ylab = "Measurements", xlab = "Index",
-       main = paste("Actual vs Setpoint - Measurement", i))
-  points(dat[[scol]], col = "red")
-  legend("topright", legend = c("Actual", "Setpoint"), col = c("blue", "red"), pch = 1)
-}
-
+par(mfrow = c(1,1))
 actcol <- paste0("Stage1.Output.Measurement", 0:14, ".U.Actual")
 setcol <- paste0("Stage1.Output.Measurement", 0:14, ".U.Setpoint")
 target <- data.frame(Average = rowMeans(dat[, actcol], na.rm = TRUE))
@@ -126,7 +125,6 @@ plot(target$Average, col = "blue", ylab = "Measurements", xlab = "Index",
      main = paste("Actual vs Setpoint - Measurement"), ylim=c(0,14))
 points(setpoint$Average, col = "red")
 legend("topright", legend = c("Actual", "Setpoint"), col = c("blue", "red"), pch = 1)
-threshold <- 1
 
 ```
 
